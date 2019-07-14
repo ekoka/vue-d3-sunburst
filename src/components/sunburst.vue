@@ -32,8 +32,7 @@ export default {
     },
 
     mounted(){
-        // the arc factory function is stored as the Vue component's 
-        // `.arc()` method.
+        // `arc()` factory function is being assigned as a method of the component
         this.arc = d3.arc()
             .startAngle(d => d.x0)
             .endAngle(d => d.x1)
@@ -43,6 +42,7 @@ export default {
             .outerRadius(d => Math.max(d.y0 * this.radius, 
                             d.y1 * this.radius - 1))
 
+        // svg translation 
         const translation = `translate(
             ${this.width*this.translation.horizontal}, 
             ${this.width*this.translation.vertical}
@@ -66,7 +66,10 @@ export default {
             handler(v){
                 this.currentDepth = 0
                 if(v){
+                    // prepare the hierarchy into a D3 hierarchy
                     this.root = this.partition(this.hierarchy)
+
+                    this.defineColorScale()
                     this.graph.selectAll('g').remove()
                     this.makeGraph()
                     this.$emit('ready', {
@@ -79,7 +82,7 @@ export default {
 
     computed:{
         ready(){
-            return this.graph && this.hieararchy
+            return this.graph && this.hierarchy
         },
         radius(){
             return this.width
@@ -90,9 +93,13 @@ export default {
     },
 
     methods: {
-        defineColorScale(dataPoints){
+        defineColorScale(){
             //.domain(this.rootCategories.map(c=>c.id).concat(null))
             //this.rootCategories.length + 1
+            const dataPoints = this.root.children.map(c=>c.data.id)
+
+            console.log(dataPoints)
+
             this.colorScale = d3.scaleOrdinal()
                 .domain(dataPoints)
                 .range(
@@ -338,11 +345,37 @@ export default {
         },
 
         partition(data){ 
+
+            // see details of calculations here:
+            // https://github.com/d3/d3-hierarchy#node_sum
+            // https://github.com/d3/d3-hierarchy#node_count
+
+            /* calculate value of nodes, then sort each node's children. 
+               
+               If a node is a leaf in the original hierarchy, its value is 
+               simply returned, else (if it contains children), its value is
+               calculated as the sum of its children's value.
+            */
             const root = d3.hierarchy(data)
-                .sum(d => d.leaf?d.value:null)
+                //.sum(d => d.leaf?d.value:null)
+                .sum(d => d.value)
                 .sort((a,b) => b.value - a.value)
+
+            /* Conceptually, the sunburst is a mapping of a hierachy to a pie.
+
+               The pie is made of concentric circles, with each circle 
+               representing a level in the hierarchy. Each circle in turn is
+               subdivided into arc portions, where each portion represents a
+               node at that specific hierarchy level. The length of each arc is
+               relative to the value associated with the node.
+                
+               The respective maxima of the sunburst pie are 2PI radians (i.e
+               a full circle) and its number of circles (i.e. the number of 
+               levels in the hierarchy). Thus we partition the node in the
+               hierarchy with respect to those maxima.
+            */
             d3.partition()
-                .size([2 * Math.PI, root.height + 1])(root)
+                .size([2 * Math.PI, root.height])(root)
             return root
         },
 
