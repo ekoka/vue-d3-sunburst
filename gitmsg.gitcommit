@@ -1,5 +1,1 @@
-Add some mock hierarchical data.
-
-add vue-resource (http).
-ensure sunburst loads upon receiving data via http.
-pass data to sunburst through prop.
+Begin adapting Sunburst from external project.
