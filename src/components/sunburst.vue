@@ -67,11 +67,14 @@ export default {
                 this.currentDepth = 0
                 if(v){
                     // prepare the hierarchy into a D3 hierarchy
-                    this.root = this.partition(this.hierarchy)
-
+                    this.root = this.partition()
                     this.defineColorScale()
+                    // clear the old graph
                     this.graph.selectAll('g').remove()
+                    // build new graph
                     this.makeGraph()
+
+                    // announce graph is complete, return what you want
                     this.$emit('ready', {
                         total: this.totalValue
                     })
@@ -94,12 +97,7 @@ export default {
 
     methods: {
         defineColorScale(){
-            //.domain(this.rootCategories.map(c=>c.id).concat(null))
-            //this.rootCategories.length + 1
             const dataPoints = this.root.children.map(c=>c.data.id)
-
-            console.log(dataPoints)
-
             this.colorScale = d3.scaleOrdinal()
                 .domain(dataPoints)
                 .range(
@@ -128,20 +126,24 @@ export default {
         },
 
         makeGraph(){
-            this.setSelection()
+            // root node is the focus of a new graph   
+            this.setSelection(this.root)
+
             this.root.each(d=>{
-                // `current` is used for positioning, not data
-                // we're only interested in coordinate information.
-                // also see later definition of `target` to understand
-                // how both are used.
-                if(d.depth<=this.selection.depth+2){
-                    // we want the current coords here
-                    // (x0, x1, y0, y1). also see `target` 
-                    d.current = this.coords(d)
-                } else {
-                    // default coords at origin
-                    d.current = this.coords({})
-                }
+                /* `current` is used for positioning, we're interested in
+                   coordinate information.
+                   Also see later definition of `target` to understand how both
+                   are used.
+                */
+                //if(d.depth<=this.selection.depth+2){
+                //    // we want the current coords here
+                //    // (x0, x1, y0, y1). also see `target` 
+                //    d.current = this.coords(d)
+                //} else {
+                //    // default coords at origin
+                //    d.current = this.coords({})
+                //}
+                d.current = this.coords(d)
                 d.label = this.truncateOnWord(
                     d.data.name, 
                     this.labelOptions.characterLimit
@@ -151,16 +153,15 @@ export default {
             this.graph.selectAll('g').remove()
 
             this.initPaths()
-            this.initTitles()
+            //this.initTitles()
             this.initCenter()
             this.initBackButton()
-            this.initLabels()
+            //this.initLabels()
         },
 
-        setSelection(){
-            const s = this.root
-            this.selection = this.partitionData(s)
-            this.selection.children = s.children.map(this.partitionData)
+        setSelection(node){
+            this.selection = this.partitionData(node)
+            this.selection.children = node.children.map(this.partitionData)
             this.$emit('selected', this.selection)
         },
 
@@ -171,7 +172,7 @@ export default {
             v.paths = this.graph.append('g')
                 .attr('fill-opacity', 0.45)
                 .selectAll('path')
-                .data(v.root.descendants().slice())
+                .data(v.root.descendants().slice(1))
                 .join('path')
                 .attr('fill', d=> {
                     while(d.depth > 1){
@@ -233,7 +234,7 @@ export default {
             const v = this
             v.center = this.graph.append('g').append('circle')
                 .datum(v.root)
-                .attr('r', v.radius - 1)
+                .attr('r', v.radius * .75)
                 .attr('fill', '#eee')
                 .attr('fill-opacity', .6)
                 .on('mouseover', d=>{
@@ -258,12 +259,12 @@ export default {
             while (p.depth > 1){
                 p = p.parent
             }
-            // if id is null (i.e. root category) we also use that as color
+            // if depth is 0 (i.e. root category) we also use that as color
             // else we fetch the color from the scale
-            color = p.data.id && this.colorScale(p.data.id) || '#eee'
+            color = p.depth && this.colorScale(p.data.id) || '#eee'
             // root element (color==null) is almost transparent, 
             // whereas other elements are at .6 
-            opacity = (p.data.id && .6) || .8
+            opacity = (p.depth && .6) || .8
 
             // interpolators for color and opacity
             const icolor = d3.interpolate(c.attr('fill'), color)
@@ -344,7 +345,7 @@ export default {
             return rv + '...'
         },
 
-        partition(data){ 
+        partition(){ 
 
             // see details of calculations here:
             // https://github.com/d3/d3-hierarchy#node_sum
@@ -356,7 +357,8 @@ export default {
                simply returned, else (if it contains children), its value is
                calculated as the sum of its children's value.
             */
-            const root = d3.hierarchy(data)
+
+            const root = d3.hierarchy(this.hierarchy)
                 //.sum(d => d.leaf?d.value:null)
                 .sum(d => d.value)
                 .sort((a,b) => b.value - a.value)
@@ -383,7 +385,8 @@ export default {
             if (!d){
                 return false
             }
-            return d.y1 <= 3 && d.y0 >= 1 && d.x1 > d.x0
+            return true
+            //return d.y1 <= 3 && d.y0 >= 1 && d.x1 > d.x0
         },
 
         initBackButton(){
@@ -427,9 +430,7 @@ export default {
             //parent.datum(p.parent || v.root)
             this.updateBackButton(p.parent)
             this.currentDepth = p.depth
-            const selection = p || v.root
-            this.selection = this.partitionData(selection)
-            this.selection.children = selection.children.map(this.partitionData)
+            this.setSelection(p || v.root)
             this.$emit('selected', this.selection)
 
 
@@ -437,11 +438,9 @@ export default {
             this.root.each(d => {
                 if(v.isDescendant(d, p)){
                     d.target = v.newTarget(d, p)
-                    if(d.depth==p.depth + 1){
-                        // direct child
-                    }
                 } else {
-                    d.target = {x0:0, x1:0, y0:0, y1:0}
+                    // set target to origin
+                    d.target = this.coords({})
                 }
             })
 
