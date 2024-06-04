@@ -1,8 +1,8 @@
 # vue-d3-sunburst
 
-### A Vue.js Sunburst Component
+### A D3.js Zoombable Sunburst as a Vue.js Component
 
-This is a D3 re-implementation of the Zoomable Sunburst chart inspired by Mike Bostock's notebook at [https://observablehq.com/@d3/zoomable-sunburst](https://observablehq.com/@d3/zoomable-sunburst).
+This is a D3.js re-implementation of the Zoomable Sunburst chart inspired by Mike Bostock's notebook at [https://observablehq.com/@d3/zoomable-sunburst](https://observablehq.com/@d3/zoomable-sunburst).
 
 The code in the component is organized to emphasize clarity. It is also heavily commentted to explain what is being done and why. My hope is that it makes it a bit more scrutable for anyone deciding to reuse and customize it.
 
